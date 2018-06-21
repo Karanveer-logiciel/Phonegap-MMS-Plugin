@@ -1,6 +1,7 @@
 package org.apache.cordova.plugin.sms;
 
 import android.annotation.SuppressLint;
+import java.util.List;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -11,6 +12,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.content.pm.ResolveInfo;	
 import android.os.Environment;
 import android.telephony.SmsManager;
 import android.util.Base64;
@@ -24,6 +26,8 @@ import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
+import io.github.pwlin.cordova.plugins.fileopener2.FileProvider;
+import org.apache.cordova.CordovaResourceApi;
 
 public class Sms extends CordovaPlugin {
 	public final String ACTION_SEND_SMS = "send";
@@ -105,54 +109,50 @@ public class Sms extends CordovaPlugin {
 	@SuppressLint("NewApi")
 	private void invokeSMSIntent(String phoneNumber, String message, String imageFile) {
 		Intent sendIntent;
-		if (!"".equals(phoneNumber)) {
-			sendIntent = new Intent(Intent.ACTION_SEND);
-			sendIntent.putExtra("address",phoneNumber);
-			sendIntent.putExtra("sms_body", message);
-
-			// String imageDataBytes = imageFile.substring(imageFile.indexOf(",")+1);           
-
-			// byte[] decodedString = Base64.decode(imageDataBytes, Base64.DEFAULT);
-			// Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length); 
-
-			// String saveFilePath = Environment.getExternalStorageDirectory() + "/HealthAngel";
-			// File dir = new File(saveFilePath);
-
-			// if(!dir.exists())
-			// 	dir.mkdirs();
-
-			// File file = new File(dir, "logo.png");
-
-			// FileOutputStream fOut = null;
-
-			// try {
-			// 	fOut = new FileOutputStream(file);
-			// } catch (FileNotFoundException e) {
-			// 	// TODO Auto-generated catch block
-			// 	e.printStackTrace();
-			// }
-
-			// decodedByte.compress(Bitmap.CompressFormat.PNG, 40, fOut);
-
-			// try {
-			// 	fOut.flush();
-			// } catch (IOException e) {
-			// 	// TODO Auto-generated catch block
-			// 	e.printStackTrace();
-			// }
-
-			// try {
-			// 	fOut.close();
-			// } catch (IOException e) {
-			// 	// TODO Auto-generated catch block
-			// 	e.printStackTrace();
-			// }
-
-			// sendIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(new File(saveFilePath + "/logo.png")));
-			sendIntent.putExtra(Intent.EXTRA_STREAM, Uri.parse(imageFile));
-			sendIntent.setType("image/*");
-			this.cordova.getActivity().startActivity(sendIntent);
+		String fileName = "";
+		try {
+			CordovaResourceApi resourceApi = webView.getResourceApi();
+			Uri fileUri = resourceApi.remapUri(Uri.parse(imageFile));
+			fileName = this.stripFileProtocol(fileUri.toString());
+		} catch (Exception e) {
+			fileName = imageFile;
 		}
+
+		File file = new File(fileName);
+
+		Uri path = Uri.fromFile(file);
+		sendIntent = new Intent(Intent.ACTION_SEND);
+
+		Context context = cordova.getActivity().getApplicationContext();
+		path = FileProvider.getUriForFile(context, cordova.getActivity().getPackageName() + ".opener.provider", file);
+		sendIntent.setDataAndType(path, "image/*");
+		sendIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+		sendIntent.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+
+		List<ResolveInfo> infoList = context.getPackageManager().queryIntentActivities(sendIntent, PackageManager.MATCH_DEFAULT_ONLY);
+		for (ResolveInfo resolveInfo : infoList) {
+	    String packageName = resolveInfo.activityInfo.packageName;
+	    context.grantUriPermission(packageName, path, Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+		}
+		
+		sendIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
+		// if (!"".equals(phoneNumber)) {
+		// 	sendIntent = new Intent(Intent.ACTION_SEND);
+
+		// 	Uri photoURI = FileProvider.getUriForFile(context, context.getApplicationContext().getPackageName() + ".my.package.name.provider", createImageFile());
+		// 	FileProvider.getUriForFile()
+		// 	// sendIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(new File(saveFilePath + "/logo.png")));
+		sendIntent.putExtra(Intent.EXTRA_STREAM, path);
+		sendIntent.putExtra(Intent.EXTRA_TEXT, message);
+		// sendIntent.putExtra(Intent.EXTRA_PHONE_NUMBER, phoneNumber);
+		// sendIntent.putExtra("address", putInt(phoneNumber));
+		// sendIntent.putExtra("sms_body", message);
+		// 	sendIntent.setType("image/*");
+		// 	this.cordova.getActivity().startActivity(sendIntent);
+		// }
+		
+		this.cordova.getActivity().startActivity(sendIntent);
 
 	}
 
@@ -186,4 +186,14 @@ public class Sms extends CordovaPlugin {
 			}
 		}
 	}
+
+	private String stripFileProtocol(String uriString) {
+		if (uriString.startsWith("file://")) {
+			uriString = uriString.substring(7);
+		} else if (uriString.startsWith("content://")) {
+			uriString = uriString.substring(10);
+		}
+		return uriString;
+	}
+
 }
