@@ -1,4 +1,4 @@
-MMS Plugin to support Android JobProgress App. Modified according to our needs. Not actively managed.
+MMS Plugin to support Android JobProgress App. Modified according to our needs.
 
 
 Phonegap-MMS-Plugin
@@ -7,7 +7,7 @@ Phonegap-MMS-Plugin
 This Android Phonegap plugin allows you to easily send MMS in android using both native SMS Manager or by invoking the default android SMS app. This plugin works with PhoneGap 3.x version.
 
 The Android portion was forked from https://github.com/aharris88/phonegap-sms-plugin by aharris88
-and then modified to support sending Multimedia Files.
+and then modified to support sending Multimedia Files and Text SMS.
 
 Only Android support this time.
 
@@ -16,7 +16,7 @@ Installation
 
 Using the Phonegap CLI run:
 
-    Cordova plugin add https://github.com/christyrajupaul/phonegap-sms-plugin.git
+    Cordova plugin add https://github.com/Karanveer-logiciel/Phonegap-MMS-Plugin
 
 This will place the plugin in your plugins directory and update your android.json file that keeps track of installed plugins.
 
